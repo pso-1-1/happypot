@@ -23,7 +23,7 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: recipedb_test
+          MYSQL_DATABASE: recipedb
           MYSQL_USER: recipeadmin
           MYSQL_PASSWORD: kod12345
         ports:
@@ -61,7 +61,7 @@ jobs:
 
     - name: Create test database and import schema
       run: |
-        mysql -h 127.0.0.1 -u root -prootpassword recipedb_test < recipedb.sql
+        mysql -h 127.0.0.1 -u root -prootpassword recipedb < recipedb.sql
       env:
         # Menunggu service MySQL siap sebelum menjalankan command ini
         # Ini penting agar MySQL sudah up dan ready untuk menerima koneksi
