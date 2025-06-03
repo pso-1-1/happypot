@@ -59,7 +59,7 @@ jobs:
     - name: Install Composer dependencies
       run: composer install --prefer-dist --no-progress
 
-        - name: Wait for MySQL to be ready # <--- LANGKAH BARU YANG SANGAT PENTING
+      - name: Wait for MySQL to be ready # <--- LANGKAH BARU YANG SANGAT PENTING
       run: |
         echo "Waiting for MySQL to be fully ready..."
         for i in $(seq 1 60); do # Coba hingga 60 kali (total 60 detik)
