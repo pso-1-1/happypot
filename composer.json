@@ -1,7 +1,8 @@
 {
-    "name": "recipe-website",
+    "name": "pso-1-1/happypot",
     "description": "A simple recipe sharing website",
     "type": "project",
+    "license": "proprietary", 
     "require": {
         "php": "^8.1",
         "ext-mysqli": "*",
