@@ -18,7 +18,7 @@ jobs:
   test: # Nama job untuk pengujian
     runs-on: ubuntu-latest # Runner yang digunakan
 
-    services: # Konfigurasi service container untuk MySQL
+    services:
       mysql:
         image: mysql:8.0
         env:
@@ -27,8 +27,12 @@ jobs:
           MYSQL_USER: recipeadmin
           MYSQL_PASSWORD: kod12345
         ports:
-          - 3306:3306 # Port mapping: host:container
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 # Health check untuk MySQL
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
 
     steps:
     - uses: actions/checkout@v4 # Menggunakan actions/checkout versi 4 yang lebih baru
@@ -61,11 +65,22 @@ jobs:
 
     - name: Create test database and import schema
       run: |
-        mysql -h 127.0.0.1 -u root -prootpassword recipedb < recipedb.sql
-      env:
-        # Menunggu service MySQL siap sebelum menjalankan command ini
-        # Ini penting agar MySQL sudah up dan ready untuk menerima koneksi
-        MYSQL_READY_DELAY: 10 # Delay opsional jika perlu, sesuaikan
+        echo "Waiting for MySQL service to be ready..."
+        # Loop ini akan mencoba koneksi ke MySQL berulang kali
+        for i in $(seq 1 18); do # Coba 18 kali dengan jeda 5 detik = 90 detik
+          # PASTIKAN HOST ADALAH 'mysql' DAN USER/PASS ADALAH 'recipeadmin'/'kod12345'
+          mysql -h mysql -u recipeadmin -pkod12345 -e "SELECT 1" 2>/dev/null && break || true
+          echo "MySQL not ready yet, waiting 5 seconds..."
+          sleep 5
+        done
+
+        # Tambahkan debug info untuk melihat apakah MySQL benar-benar bisa dijangkau
+        echo "Attempting to connect to MySQL for final check..."
+        mysql -h mysql -u recipeadmin -pkod12345 -e "SHOW DATABASES;" || { echo "Failed to connect to MySQL after waiting. Exiting."; exit 1; }
+
+        # PASTIKAN HOST ADALAH 'mysql' DAN USER/PASS ADALAH 'recipeadmin'/'kod12345'
+        # PASTIKAN NAMA DATABASE 'recipedb'
+        mysql -h mysql -u recipeadmin -pkod12345 recipedb < recipedb.sql # <-- Diperbarui menjadi 'recipedb'
 
     - name: Run PHPUnit tests
       run: |
