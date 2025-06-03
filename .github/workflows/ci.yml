@@ -1,37 +1,43 @@
-name: Recipe Website CI/CD
+name: Recipe Website CI/CD # Nama workflow Anda
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" ] # Trigger saat ada push ke branch main
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main" ] # Trigger saat ada Pull Request ke branch main
 
 permissions:
-  contents: read
+  contents: read # Memberikan izin baca untuk konten repositori
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # Variabel environment dari secrets
   SERVICE_NAME: recipe-website
   REGION: asia-southeast1
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  test: # Nama job untuk pengujian
+    runs-on: ubuntu-latest # Runner yang digunakan
 
-    services:
+    services: # Konfigurasi service container untuk MySQL
       mysql:
-        image: mysql:8.0
+        image: mysql:5.7
         env:
           MYSQL_ROOT_PASSWORD: rootpassword
           MYSQL_DATABASE: recipedb_test
           MYSQL_USER: recipeadmin
           MYSQL_PASSWORD: kod12345
+          # --- OPSI DEBUGGING MYSQL ---
+          # Tambahkan ini untuk debugging verbose jika ada masalah boot
+          # MYSQL_LOG_CONSOLE: true # Log ke konsol Docker (seringkali sudah default)
+          # MYSQL_GENERAL_LOG: 1 # Ini akan mencetak setiap query SQL (sangat verbose!)
+          # MYSQL_GENERAL_LOG_FILE: /dev/stdout # Pastikan log umum ke stdout
+          # --- AKHIR OPSI DEBUGGING ---
         ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+          - 3306:3306 # Port mapping: host:container
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 # Health check untuk MySQL
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4 # Menggunakan actions/checkout versi 4 yang lebih baru
 
     - name: Validate composer.json and composer.lock
       run: composer validate --strict
@@ -43,17 +49,17 @@ jobs:
     - name: Cache dependencies
       uses: actions/cache@v3
       with:
-        path: ${{ steps.composer-cache.outputs.dir }}
-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        path: ${{ steps.composer-cache.outputs.dir }} # Menggunakan direktori cache composer
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }} # Key cache yang lebih robust
         restore-keys: |
           ${{ runner.os }}-php-
 
-    - name: Set up PHP
+    - name: Set up PHP # Mengatur PHP sesuai kebutuhan proyek Anda
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.1'
         extensions: mbstring, xml, gd, pdo_mysql
-        coverage: xdebug
+        coverage: xdebug # Untuk code coverage dengan PHPUnit
         tools: composer:v2
 
     - name: Install Composer dependencies
@@ -62,28 +68,33 @@ jobs:
     - name: Wait for MySQL to be ready
       run: |
         echo "Waiting for MySQL to be fully ready..."
-        for i in $(seq 1 60); do
+        # Loop diperpanjang hingga 120 detik jika diperlukan, atau sesuaikan
+        for i in $(seq 1 120); do
           if mysqladmin ping -h mysql --silent; then
             echo "MySQL is ready!"
             break
           fi
-          echo "Still waiting for MySQL... ($i/60)"
+          echo "Still waiting for MySQL... ($i/120)"
           sleep 1
         done
+        # Jika loop selesai tanpa break, paksa kegagalan
         mysqladmin ping -h mysql || { echo "MySQL did not become ready in time!"; exit 1; }
       env:
         MYSQL_PWD: rootpassword
 
-    - name: Debug MySQL Service Network # <--- TAMBAHKAN LANGKAH INI
-      # Jalankan hanya jika langkah sebelumnya (Wait for MySQL) berhasil
+    - name: Debug MySQL Service Network and Logs # <--- LANGKAH DEBUGGING PENTING
+      if: failure() || cancelled() # Jalankan hanya jika langkah sebelumnya (Wait for MySQL) gagal atau dibatalkan
       run: |
-        echo "--- Pinging MySQL Host ---"
-        ping -c 5 mysql
-        echo "--- Checking MySQL Container IP ---"
-        getent hosts mysql # Mencoba resolusi nama dari dalam runner
+        echo "--- Debugging MySQL Service Network ---"
+        echo "Attempting to ping 'mysql' host:"
+        ping -c 5 mysql || echo "Ping failed. Name resolution issue likely."
+        echo "Attempting 'getent hosts mysql':"
+        getent hosts mysql || echo "getent failed. DNS lookup issue likely."
         echo "--- Checking MySQL Container Logs ---"
-        docker logs mysql # Mengambil log dari container MySQL
-      continue-on-error: true # Agar workflow tetap lanjut meskipun debug ini gagal
+        docker logs mysql || echo "Failed to get Docker logs for 'mysql' container."
+        echo "--- Inspecting MySQL Container ---"
+        docker inspect mysql || echo "Failed to inspect 'mysql' container."
+      continue-on-error: true # Agar workflow tetap lanjut (atau setidaknya mencetak log ini) untuk diagnosis
 
     - name: Create test database and import schema
       run: |
