@@ -1,0 +1,47 @@
+name: CI Pipeline
+
+# test
+
+# Pipeline akan terpicu pada event berikut:
+on:
+  pull_request:
+    branches:
+      - main
+  # Opsional: Ketika ada push langsung ke branch 'main' atau branch yang diawali 'feature/'
+  push:
+    branches:
+      - main
+      - feature/* # Ini akan menjalankan CI saat Anda push ke branch fitur Anda
+
+# Definisikan Job (pekerjaan) yang akan dijalankan
+jobs:
+  build: # Nama job ini adalah 'build'
+    runs-on: ubuntu-latest # Runner (mesin virtual) yang akan menjalankan job ini (Ubuntu terbaru)
+
+    steps:
+    # Langkah 1: Checkout kode dari repository GitHub
+    - name: Checkout code
+      uses: actions/checkout@v4 # Menggunakan GitHub Action resmi untuk checkout kode
+
+    # Langkah 2: Mengatur Docker Buildx (alat build Docker yang modern)
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3 # Menggunakan GitHub Action untuk setup Buildx
+
+    # Langkah 3: Membangun Docker Image aplikasi Anda
+    - name: Build Docker Image
+      uses: docker/build-push-action@v5 # Menggunakan GitHub Action untuk build dan push Docker
+      with:
+        # Konteks build adalah direktori tempat Dockerfile Anda berada,
+        # relatif dari root repository.
+        # Karena Dockerfile Anda ada di 'recipewebsite/', konteksnya adalah './recipewebsite'.
+        context: ./recipewebsite
+        # 'push: false' berarti hanya membangun image, tidak mendorongnya ke Docker Hub di fase CI ini.
+        # Push ke Docker Hub akan dilakukan di fase CD.
+        push: false
+        # Memberi tag pada image yang dibangun (bisa diubah nanti jika butuh versi spesifik)
+        tags: simple-recipe-web:latest
+
+    # Langkah 4: (Opsional - Verifikasi Build)
+    # Anda bisa menambahkan langkah ini untuk sekadar memastikan image sudah ada di runner
+    - name: Verify image build (Optional)
+      run: docker images # Perintah untuk menampilkan daftar image Docker di runner
