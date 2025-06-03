@@ -8,6 +8,7 @@ RUN a2enmod rewrite
 
 COPY . /var/www/html/
 
+# halo
 # Konfigurasi Virtual Host
 RUN echo "<VirtualHost *:80>\n" > /etc/apache2/sites-available/simple-recipe.conf
 RUN echo "    ServerAdmin webmaster@localhost\n" >> /etc/apache2/sites-available/simple-recipe.conf
