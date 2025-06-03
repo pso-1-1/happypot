@@ -33,13 +33,13 @@ class TestCase extends BaseTestCase
         parent::tearDown();
     }
 
-    protected function createTestUser($username = 'testuser', $password = 'testpass123')
+    protected function createTestUser($email = 'testuser@test.com', $password = 'testpass123', $fname = 'Test', $lname = 'User')
     {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        $sql = "INSERT INTO users (username, password, email) VALUES (?, ?, ?)";
+        // SQL INSERT disesuaikan dengan kolom 'email', 'fname', 'lname', 'password' di tabel 'user'
+        $sql = "INSERT INTO user (email, fname, lname, password) VALUES (?, ?, ?, ?)";
         $stmt = $this->db->prepare($sql);
-        $email = $username . '@test.com';
-        $stmt->bind_param('sss', $username, $hashedPassword, $email);
+        $stmt->bind_param('ssss', $email, $fname, $lname, $hashedPassword);
         $stmt->execute();
         return $this->db->insert_id;
     }
@@ -58,6 +58,6 @@ class TestCase extends BaseTestCase
     protected function cleanTestData()
     {
         $this->db->query("DELETE FROM recipes");
-        $this->db->query("DELETE FROM users");
+        $this->db->query("DELETE FROM user");
     }
 } 

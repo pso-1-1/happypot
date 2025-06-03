@@ -12,12 +12,11 @@ class AuthTest extends TestCase
 
     public function testUserRegistration()
     {
-        $username = 'newuser';
         $password = 'newpass123';
         $email = 'newuser@test.com';
 
         // Test registration
-        $userId = $this->createTestUser($username, $password);
+        $userId = $this->createTestUser($email, $password);
 
         // Verify user was created
         $sql = "SELECT * FROM user WHERE id = ?";
@@ -28,23 +27,22 @@ class AuthTest extends TestCase
         $user = $result->fetch_assoc();
 
         $this->assertNotFalse($user);
-        $this->assertEquals($username, $user['username']);
         $this->assertEquals($email, $user['email']);
         $this->assertTrue(password_verify($password, $user['password']));
     }
 
     public function testUserLogin()
     {
-        $username = 'testuser';
+        $email = 'newuser@test.com';
         $password = 'testpass123';
         
         // Create test user
-        $userId = $this->createTestUser($username, $password);
+        $userId = $this->createTestUser($email, $password);
 
         // Test login
-        $sql = "SELECT * FROM user WHERE username = ?";
+        $sql = "SELECT * FROM user WHERE email = ?";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $username);
+        $stmt->bind_param('s', $email);
         $stmt->execute();
         $result = $stmt->get_result();
         $user = $result->fetch_assoc();
@@ -53,30 +51,30 @@ class AuthTest extends TestCase
         $this->assertTrue(password_verify($password, $user['password']));
     }
 
-    public function testDuplicateUsername()
+    public function testDuplicatEmail()
     {
-        $username = 'duplicateuser';
+        $email = 'duplicateuser';
         
         // Create first user
-        $this->createTestUser($username);
+        $this->createTestUser($email);
 
-        // Try to create second user with same username
+        // Try to create second user with same email
         $this->expectException(\Exception::class);
-        $this->createTestUser($username);
+        $this->createTestUser($email);
     }
 
     public function testInvalidLogin()
     {
-        $username = 'testuser';
+        $email = 'newuser@test.com';
         $password = 'testpass123';
         
         // Create test user
-        $this->createTestUser($username, $password);
+        $this->createTestUser($email, $password);
 
         // Test invalid password
-        $sql = "SELECT * FROM user WHERE username = ?";
+        $sql = "SELECT * FROM user WHERE email = ?";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $username);
+        $stmt->bind_param('s', $email);
         $stmt->execute();
         $result = $stmt->get_result();
         $user = $result->fetch_assoc();
