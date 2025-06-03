@@ -17,7 +17,6 @@ env:
 jobs:
   test: # Nama job untuk pengujian
     runs-on: ubuntu-latest # Runner yang digunakan
-
     services: # Konfigurasi service container untuk MySQL
       mysql:
         image: mysql:5.7
