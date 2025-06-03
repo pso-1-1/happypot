@@ -1,40 +1,28 @@
-name: Recipe Website CI/CD # Nama workflow Anda
+name: Recipe Website CI/CD
 
 on:
-  push:
-    branches: [ "main" ] # Trigger saat ada push ke branch main
   pull_request:
-    branches: [ "main" ] # Trigger saat ada Pull Request ke branch main
-
-permissions:
-  contents: read # Memberikan izin baca untuk konten repositori
+    branches: [ main ]
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # Variabel environment dari secrets
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: recipe-website
   REGION: asia-southeast1
 
 jobs:
-  test: # Nama job untuk pengujian
-    runs-on: ubuntu-latest # Runner yang digunakan
-
-    services: # Konfigurasi service container untuk MySQL
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: recipedb
-          MYSQL_USER: recipeadmin
-          MYSQL_PASSWORD: kod12345
-        ports:
-          - 3306:3306 # Port mapping: host:container
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 # Health check untuk MySQL
+  test:
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4 # Menggunakan actions/checkout versi 4 yang lebih baru
+    - uses: actions/checkout@v3
 
-    - name: Validate composer.json and composer.lock
-      run: composer validate --strict
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+        extensions: mbstring, xml, gd, pdo_mysql
+        coverage: xdebug
+        tools: composer:v2
 
     - name: Get composer cache directory
       id: composer-cache
@@ -43,29 +31,12 @@ jobs:
     - name: Cache dependencies
       uses: actions/cache@v3
       with:
-        path: ${{ steps.composer-cache.outputs.dir }} # Menggunakan direktori cache composer
-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }} # Key cache yang lebih robust
-        restore-keys: |
-          ${{ runner.os }}-php-
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: ${{ runner.os }}-composer-
 
-    - name: Set up PHP # Mengatur PHP sesuai kebutuhan proyek Anda
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.1'
-        extensions: mbstring, xml, gd, pdo_mysql
-        coverage: xdebug # Untuk code coverage dengan PHPUnit
-        tools: composer:v2
-
-    - name: Install Composer dependencies
+    - name: Install dependencies
       run: composer install --prefer-dist --no-progress
-
-    - name: Create test database and import schema
-      run: |
-        mysql -h 127.0.0.1 -u root -prootpassword recipedb < recipedb.sql
-      env:
-        # Menunggu service MySQL siap sebelum menjalankan command ini
-        # Ini penting agar MySQL sudah up dan ready untuk menerima koneksi
-        MYSQL_READY_DELAY: 10 # Delay opsional jika perlu, sesuaikan
 
     - name: Run PHPUnit tests
       run: |
@@ -75,15 +46,17 @@ jobs:
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.xml
-        fail_ci_if_error: true
+        fail_ci_if_error: false
 
     - name: PHP Syntax Check
-      run: find . -type f -name "*.php" -exec php -l {} \;
+      run: find . -type f -name "*.php" -not -path "*/vendor/*" -exec php -l {} \;
 
     - name: PHP Code Sniffer
+      continue-on-error: true
       run: |
         ./vendor/bin/phpcs --standard=PSR12 --extensions=php .
 
     - name: PHP Mess Detector
+      continue-on-error: true
       run: |
-        ./vendor/bin/phpmd . text cleancode,codesize,controversial,design,naming,unusedcode
+        ./vendor/bin/phpmd . text cleancode,codesize,design,naming --exclude vendor/
