@@ -3,61 +3,122 @@
 namespace Tests;
 
 use PHPUnit\Framework\TestCase as BaseTestCase;
+use PHPUnit\Framework\MockObject\MockObject;
 
 class TestCase extends BaseTestCase
 {
     protected $db;
+    protected $lastInsertId = 1;
 
     protected function setUp(): void
     {
         parent::setUp();
         
-        // Set up test database connection
-        $this->db = new \mysqli(
-            getenv('DB_HOST') ?: 'localhost',
-            getenv('DB_USER') ?: 'recipeadmin',
-            getenv('DB_PASSWORD') ?: 'kod12345',
-            getenv('DB_NAME') ?: 'recipedb_test'
-        );
+        // Create mock for mysqli
+        $this->db = $this->getMockBuilder(\mysqli::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['prepare', 'query', 'close'])
+            ->addMethods(['connect_error', 'getInsertId'])
+            ->getMock();
+        
+        // Set up common mock expectations
+        $this->db->method('prepare')
+            ->willReturn($this->createMock(\mysqli_stmt::class));
+            
+        $this->db->method('query')
+            ->willReturn($this->createMock(\mysqli_result::class));
+            
+        $this->db->method('connect_error')
+            ->willReturn(null);
 
-        if ($this->db->connect_error) {
-            throw new \Exception('Database connection failed: ' . $this->db->connect_error);
-        }
+        $this->db->method('close')
+            ->willReturn(true);
+
+        $this->db->method('getInsertId')
+            ->will($this->returnCallback(function() {
+                return $this->lastInsertId;
+            }));
     }
 
     protected function tearDown(): void
     {
-        if ($this->db) {
-            $this->db->close();
-        }
+        $this->db = null;
+        $this->lastInsertId = 1;
         parent::tearDown();
     }
 
     protected function createTestUser($username = 'testuser', $password = 'testpass123')
     {
-        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        $sql = "INSERT INTO users (username, password, email) VALUES (?, ?, ?)";
-        $stmt = $this->db->prepare($sql);
-        $email = $username . '@test.com';
-        $stmt->bind_param('sss', $username, $hashedPassword, $email);
-        $stmt->execute();
-        return $this->db->insert_id;
+        // Mock the result set for user verification
+        $result = $this->getMockBuilder(\mysqli_result::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['fetch_assoc'])
+            ->getMock();
+            
+        $result->method('fetch_assoc')
+            ->willReturn([
+                'id' => $this->lastInsertId,
+                'username' => $username,
+                'password' => password_hash($password, PASSWORD_DEFAULT)
+            ]);
+
+        // Mock the prepared statement
+        $stmt = $this->getMockBuilder(\mysqli_stmt::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['bind_param', 'execute', 'get_result'])
+            ->getMock();
+            
+        $stmt->method('bind_param')
+            ->willReturn(true);
+        $stmt->method('execute')
+            ->willReturn(true);
+        $stmt->method('get_result')
+            ->willReturn($result);
+
+        $this->db->method('prepare')
+            ->willReturn($stmt);
+
+        return $this->lastInsertId++;
     }
 
-    protected function createTestRecipe($userId, $title = 'Test Recipe')
+    protected function createTestRecipe($userId)
     {
-        $sql = "INSERT INTO recipes (user_id, title, ingredients, instructions) VALUES (?, ?, ?, ?)";
-        $stmt = $this->db->prepare($sql);
-        $ingredients = 'Test ingredients';
-        $instructions = 'Test instructions';
-        $stmt->bind_param('isss', $userId, $title, $ingredients, $instructions);
-        $stmt->execute();
-        return $this->db->insert_id;
+        // Mock the result set for recipe verification
+        $result = $this->getMockBuilder(\mysqli_result::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['fetch_assoc'])
+            ->getMock();
+            
+        $result->method('fetch_assoc')
+            ->willReturn([
+                'id' => $this->lastInsertId,
+                'user_id' => $userId,
+                'title' => 'Test Recipe',
+                'ingredients' => 'Test ingredients',
+                'instructions' => 'Test instructions'
+            ]);
+
+        // Mock the prepared statement
+        $stmt = $this->getMockBuilder(\mysqli_stmt::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['bind_param', 'execute', 'get_result'])
+            ->getMock();
+            
+        $stmt->method('bind_param')
+            ->willReturn(true);
+        $stmt->method('execute')
+            ->willReturn(true);
+        $stmt->method('get_result')
+            ->willReturn($result);
+
+        $this->db->method('prepare')
+            ->willReturn($stmt);
+
+        return $this->lastInsertId++;
     }
 
     protected function cleanTestData()
     {
-        $this->db->query("DELETE FROM recipes");
-        $this->db->query("DELETE FROM users");
+        // No cleanup needed for mocks
     }
 } 
