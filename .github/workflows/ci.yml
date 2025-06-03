@@ -1,37 +1,38 @@
-name: Recipe Website CI/CD # Nama workflow Anda
+name: Recipe Website CI/CD
 
 on:
   push:
-    branches: [ "main" ] # Trigger saat ada push ke branch main
+    branches: [ main ] # Saat ada push ke branch 'main'
   pull_request:
-    branches: [ "main" ] # Trigger saat ada Pull Request ke branch main
+    branches: [ main ] # Saat ada Pull Request ke branch 'main'
 
 permissions:
   contents: read # Memberikan izin baca untuk konten repositori
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # Variabel environment dari secrets
-  SERVICE_NAME: recipe-website
-  REGION: asia-southeast1
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # ID Proyek Google Cloud (disimpan sebagai Secret)
+  SERVICE_NAME: recipe-website             # Nama layanan aplikasi Anda
+  REGION: asia-southeast1                  # Region deployment Google Cloud
 
 jobs:
-  test: # Nama job untuk pengujian
-    runs-on: ubuntu-latest # Runner yang digunakan
+  test: # JOB PERTAMA: Menjalankan Pengujian (Continuous Integration)
+    runs-on: ubuntu-latest # Runner (mesin virtual) yang akan menjalankan job ini
 
-    services: # Konfigurasi service container untuk MySQL
+    services:
       mysql:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: recipedb
-          MYSQL_USER: recipeadmin
-          MYSQL_PASSWORD: kod12345
+          MYSQL_DATABASE: recipedb_test     # <-- KONSISTEN DENGAN PHPUNIT.XML
+          MYSQL_USER: recipeadmin           # <-- KONSISTEN DENGAN PHPUNIT.XML
+          MYSQL_PASSWORD: kod12345          # <-- KONSISTEN DENGAN PHPUNIT.XML
         ports:
-          - 3306:3306 # Port mapping: host:container
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 # Health check untuk MySQL
+          - 3306:3306
+        # PASTIKAN health-cmd INI MENGGUNAKAN KREDENSIAL YANG BENAR
+        options: --health-cmd="mysqladmin ping -u recipeadmin -pkod12345" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
-    - uses: actions/checkout@v4 # Menggunakan actions/checkout versi 4 yang lebih baru
+    - uses: actions/checkout@v4
 
     - name: Validate composer.json and composer.lock
       run: composer validate --strict
@@ -43,23 +44,23 @@ jobs:
     - name: Cache dependencies
       uses: actions/cache@v3
       with:
-        path: ${{ steps.composer-cache.outputs.dir }} # Menggunakan direktori cache composer
-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }} # Key cache yang lebih robust
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
         restore-keys: |
           ${{ runner.os }}-php-
 
-    - name: Set up PHP # Mengatur PHP sesuai kebutuhan proyek Anda
+    - name: Set up PHP # <-- VERSI PHP 8.2 AGAR KONSISTEN DENGAN DOCKERFILE
       uses: shivammathur/setup-php@v2
       with:
-        php-version: '8.1'
+        php-version: '8.2'
         extensions: mbstring, xml, gd, pdo_mysql
-        coverage: xdebug # Untuk code coverage dengan PHPUnit
+        coverage: xdebug
         tools: composer:v2
 
     - name: Install Composer dependencies
       run: composer install --prefer-dist --no-progress
 
-    - name: Create test database and import schema
+    - name: Create test database and import schema # <-- PERBAIKAN LENGKAP UNTUK KONEKSI MYSQL
       run: |
         echo "Waiting for MySQL service to be ready..."
         # Loop ini akan mencoba koneksi ke MySQL berulang kali
@@ -97,3 +98,6 @@ jobs:
     - name: PHP Mess Detector
       run: |
         ./vendor/bin/phpmd . text cleancode,codesize,controversial,design,naming,unusedcode
+
+  # Job build-and-push dan deploy (jika ada) harus ditambahkan di sini
+  # sesuai dengan yang kita diskusikan sebelumnya untuk CI/CD lengkap
