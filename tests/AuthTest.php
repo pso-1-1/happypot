@@ -20,7 +20,7 @@ class AuthTest extends TestCase
         $userId = $this->createTestUser($username, $password);
 
         // Verify user was created
-        $sql = "SELECT * FROM users WHERE id = ?";
+        $sql = "SELECT * FROM user WHERE id = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('i', $userId);
         $stmt->execute();
@@ -42,7 +42,7 @@ class AuthTest extends TestCase
         $userId = $this->createTestUser($username, $password);
 
         // Test login
-        $sql = "SELECT * FROM users WHERE username = ?";
+        $sql = "SELECT * FROM user WHERE username = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('s', $username);
         $stmt->execute();
@@ -74,7 +74,7 @@ class AuthTest extends TestCase
         $this->createTestUser($username, $password);
 
         // Test invalid password
-        $sql = "SELECT * FROM users WHERE username = ?";
+        $sql = "SELECT * FROM user WHERE username = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('s', $username);
         $stmt->execute();

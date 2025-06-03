@@ -19,7 +19,7 @@ class RecipeTest extends TestCase
         $recipeId = $this->createTestRecipe($userId);
 
         // Verify recipe was created
-        $sql = "SELECT * FROM recipes WHERE id = ?";
+        $sql = "SELECT * FROM recipe WHERE id = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('i', $recipeId);
         $stmt->execute();
@@ -44,13 +44,13 @@ class RecipeTest extends TestCase
         $newIngredients = 'Updated ingredients';
         $newInstructions = 'Updated instructions';
 
-        $sql = "UPDATE recipes SET title = ?, ingredients = ?, instructions = ? WHERE id = ?";
+        $sql = "UPDATE recipe SET title = ?, ingredients = ?, instructions = ? WHERE id = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('sssi', $newTitle, $newIngredients, $newInstructions, $recipeId);
         $stmt->execute();
 
         // Verify update
-        $sql = "SELECT * FROM recipes WHERE id = ?";
+        $sql = "SELECT * FROM recipe WHERE id = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('i', $recipeId);
         $stmt->execute();
@@ -69,13 +69,13 @@ class RecipeTest extends TestCase
         $recipeId = $this->createTestRecipe($userId);
 
         // Delete recipe
-        $sql = "DELETE FROM recipes WHERE id = ?";
+        $sql = "DELETE FROM recipe WHERE id = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('i', $recipeId);
         $stmt->execute();
 
         // Verify deletion
-        $sql = "SELECT * FROM recipes WHERE id = ?";
+        $sql = "SELECT * FROM recipe WHERE id = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('i', $recipeId);
         $stmt->execute();
@@ -84,28 +84,28 @@ class RecipeTest extends TestCase
         $this->assertEquals(0, $result->num_rows);
     }
 
-    public function testListUserRecipes()
+    public function testListUserRecipe()
     {
         // Create test user
         $userId = $this->createTestUser();
 
-        // Create multiple recipes
+        // Create multiple recipe
         $this->createTestRecipe($userId, 'Recipe 1');
         $this->createTestRecipe($userId, 'Recipe 2');
         $this->createTestRecipe($userId, 'Recipe 3');
 
-        // Get user's recipes
-        $sql = "SELECT * FROM recipes WHERE user_id = ? ORDER BY id DESC";
+        // Get user's recipe
+        $sql = "SELECT * FROM recipe WHERE user_id = ? ORDER BY id DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('i', $userId);
         $stmt->execute();
         $result = $stmt->get_result();
-        $recipes = $result->fetch_all(MYSQLI_ASSOC);
+        $recipe = $result->fetch_all(MYSQLI_ASSOC);
 
-        $this->assertCount(3, $recipes);
-        $this->assertEquals('Recipe 3', $recipes[0]['title']);
-        $this->assertEquals('Recipe 2', $recipes[1]['title']);
-        $this->assertEquals('Recipe 1', $recipes[2]['title']);
+        $this->assertCount(3, $recipe);
+        $this->assertEquals('Recipe 3', $recipe[0]['title']);
+        $this->assertEquals('Recipe 2', $recipe[1]['title']);
+        $this->assertEquals('Recipe 1', $recipe[2]['title']);
     }
 
     public function testRecipeSearch()
@@ -113,21 +113,21 @@ class RecipeTest extends TestCase
         // Create test user
         $userId = $this->createTestUser();
 
-        // Create recipes with different titles
+        // Create recipe with different titles
         $this->createTestRecipe($userId, 'Chicken Curry');
         $this->createTestRecipe($userId, 'Beef Steak');
         $this->createTestRecipe($userId, 'Vegetable Soup');
 
-        // Search for recipes containing 'Chicken'
+        // Search for recipe containing 'Chicken'
         $searchTerm = '%Chicken%';
-        $sql = "SELECT * FROM recipes WHERE title LIKE ?";
+        $sql = "SELECT * FROM recipe WHERE title LIKE ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('s', $searchTerm);
         $stmt->execute();
         $result = $stmt->get_result();
-        $recipes = $result->fetch_all(MYSQLI_ASSOC);
+        $recipe = $result->fetch_all(MYSQLI_ASSOC);
 
-        $this->assertCount(1, $recipes);
-        $this->assertEquals('Chicken Curry', $recipes[0]['title']);
+        $this->assertCount(1, $recipe);
+        $this->assertEquals('Chicken Curry', $recipe[0]['title']);
     }
 } 
