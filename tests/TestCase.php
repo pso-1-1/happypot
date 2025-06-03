@@ -17,7 +17,7 @@ class TestCase extends BaseTestCase
             getenv('DB_HOST') ?: 'localhost',
             getenv('DB_USER') ?: 'recipeadmin',
             getenv('DB_PASSWORD') ?: 'kod12345',
-            getenv('DB_NAME') ?: 'recipedb_test'
+            getenv('DB_NAME') ?: 'recipedb'
         );
 
         if ($this->db->connect_error) {

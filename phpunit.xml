@@ -20,7 +20,7 @@
     </coverage>
     <php>
         <env name="APP_ENV" value="testing"/>
-        <env name="DB_HOST" value="mysql"/>
+        <env name="DB_HOST" value="localhost"/>
         <env name="DB_USER" value="recipeadmin"/>
         <env name="DB_PASSWORD" value="kod12345"/>
         <env name="DB_NAME" value="recipedb"/>
