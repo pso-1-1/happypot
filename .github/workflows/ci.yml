@@ -59,6 +59,21 @@ jobs:
     - name: Install Composer dependencies
       run: composer install --prefer-dist --no-progress
 
+        - name: Wait for MySQL to be ready # <--- LANGKAH BARU YANG SANGAT PENTING
+      run: |
+        echo "Waiting for MySQL to be fully ready..."
+        for i in $(seq 1 60); do # Coba hingga 60 kali (total 60 detik)
+          if mysqladmin ping -h mysql --silent; then
+            echo "MySQL is ready!"
+            break
+          fi
+          echo "Still waiting for MySQL... ($i/60)"
+          sleep 1
+        done
+        mysqladmin ping -h mysql || { echo "MySQL did not become ready in time!"; exit 1; } # Pastikan keluar jika gagal
+      env:
+        MYSQL_PWD: rootpassword # Penting: gunakan ini untuk password root agar tidak terekspos di log
+
     - name: Create test database and import schema
       run: |
         mysql -h 127.0.0.1 -u root -prootpassword recipedb_test < recipedb.sql
