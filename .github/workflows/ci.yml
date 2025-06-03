@@ -17,15 +17,20 @@ env:
 jobs:
   test: # Nama job untuk pengujian
     runs-on: ubuntu-latest # Runner yang digunakan
-
     services: # Konfigurasi service container untuk MySQL
       mysql:
-        image: mysql:8.0
+        image: mysql:5.7
         env:
           MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: recipedb_test
+          MYSQL_DATABASE: recipedb
           MYSQL_USER: recipeadmin
           MYSQL_PASSWORD: kod12345
+          # --- OPSI DEBUGGING MYSQL ---
+          # Tambahkan ini untuk debugging verbose jika ada masalah boot
+          # MYSQL_LOG_CONSOLE: true # Log ke konsol Docker (seringkali sudah default)
+          # MYSQL_GENERAL_LOG: 1 # Ini akan mencetak setiap query SQL (sangat verbose!)
+          # MYSQL_GENERAL_LOG_FILE: /dev/stdout # Pastikan log umum ke stdout
+          # --- AKHIR OPSI DEBUGGING ---
         ports:
           - 3306:3306 # Port mapping: host:container
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 # Health check untuk MySQL
@@ -59,28 +64,41 @@ jobs:
     - name: Install Composer dependencies
       run: composer install --prefer-dist --no-progress
 
-        - name: Wait for MySQL to be ready # <--- LANGKAH BARU YANG SANGAT PENTING
+    - name: Wait for MySQL to be ready
       run: |
         echo "Waiting for MySQL to be fully ready..."
-        for i in $(seq 1 60); do # Coba hingga 60 kali (total 60 detik)
+        # Loop diperpanjang hingga 120 detik jika diperlukan, atau sesuaikan
+        for i in $(seq 1 120); do
           if mysqladmin ping -h mysql --silent; then
             echo "MySQL is ready!"
             break
           fi
-          echo "Still waiting for MySQL... ($i/60)"
+          echo "Still waiting for MySQL... ($i/120)"
           sleep 1
         done
-        mysqladmin ping -h mysql || { echo "MySQL did not become ready in time!"; exit 1; } # Pastikan keluar jika gagal
+        # Jika loop selesai tanpa break, paksa kegagalan
+        mysqladmin ping -h mysql || { echo "MySQL did not become ready in time!"; exit 1; }
       env:
-        MYSQL_PWD: rootpassword # Penting: gunakan ini untuk password root agar tidak terekspos di log
+        MYSQL_PWD: rootpassword
+
+    - name: Debug MySQL Service Network and Logs # <--- LANGKAH DEBUGGING PENTING
+      if: failure() || cancelled() # Jalankan hanya jika langkah sebelumnya (Wait for MySQL) gagal atau dibatalkan
+      run: |
+        echo "--- Debugging MySQL Service Network ---"
+        echo "Attempting to ping 'mysql' host:"
+        ping -c 5 mysql || echo "Ping failed. Name resolution issue likely."
+        echo "Attempting 'getent hosts mysql':"
+        getent hosts mysql || echo "getent failed. DNS lookup issue likely."
+        echo "--- Checking MySQL Container Logs ---"
+        docker logs mysql || echo "Failed to get Docker logs for 'mysql' container."
+        echo "--- Inspecting MySQL Container ---"
+        docker inspect mysql || echo "Failed to inspect 'mysql' container."
+      continue-on-error: true # Agar workflow tetap lanjut (atau setidaknya mencetak log ini) untuk diagnosis
 
     - name: Create test database and import schema
       run: |
-        mysql -h 127.0.0.1 -u root -prootpassword recipedb_test < recipedb.sql
-      env:
-        # Menunggu service MySQL siap sebelum menjalankan command ini
-        # Ini penting agar MySQL sudah up dan ready untuk menerima koneksi
-        MYSQL_READY_DELAY: 10 # Delay opsional jika perlu, sesuaikan
+        # Gunakan 'mysql' sebagai host untuk konsistensi
+        mysql -h mysql -u root -prootpassword recipedb_test < recipedb.sql
 
     - name: Run PHPUnit tests
       run: |
