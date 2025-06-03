@@ -61,11 +61,21 @@ jobs:
 
     - name: Create test database and import schema
       run: |
-        mysql -h 127.0.0.1 -u root -prootpassword recipedb < recipedb.sql
-      env:
-        # Menunggu service MySQL siap sebelum menjalankan command ini
-        # Ini penting agar MySQL sudah up dan ready untuk menerima koneksi
-        MYSQL_READY_DELAY: 10 # Delay opsional jika perlu, sesuaikan
+        echo "Waiting for MySQL service to be ready..."
+        # Loop ini akan mencoba koneksi ke MySQL berulang kali
+        for i in $(seq 1 18); do # Coba 18 kali dengan jeda 5 detik = 90 detik
+          # PASTIKAN HOST ADALAH 'mysql' DAN USER/PASS ADALAH 'recipeadmin'/'kod12345'
+          mysql -h mysql -u recipeadmin -pkod12345 -e "SELECT 1" 2>/dev/null && break || true
+          echo "MySQL not ready yet, waiting 5 seconds..."
+          sleep 5
+        done
+
+        # Tambahkan debug info untuk melihat apakah MySQL benar-benar bisa dijangkau
+        echo "Attempting to connect to MySQL for final check..."
+        mysql -h mysql -u recipeadmin -pkod12345 -e "SHOW DATABASES;" || { echo "Failed to connect to MySQL after waiting. Exiting."; exit 1; }
+
+        # PASTIKAN HOST ADALAH 'mysql' DAN USER/PASS ADALAH 'recipeadmin'/'kod12345'
+        mysql -h mysql -u recipeadmin -pkod12345 recipedb_test < recipedb.sql # <-- NAMA DATABASE 'recipedb_test'
 
     - name: Run PHPUnit tests
       run: |
