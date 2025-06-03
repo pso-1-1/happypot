@@ -69,7 +69,7 @@ if (!isset($_SESSION['user_id'])) {
 ?>
 
 
-<H1 class="title">Recipes</H1>
+<H1 class="title">Test Recipes</H1>
 <!-- Main Content -->
 <main>
     <?php
