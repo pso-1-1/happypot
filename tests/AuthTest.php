@@ -37,7 +37,7 @@ class AuthTest extends TestCase
     {
         $username = 'testuser';
         $password = 'testpass123';
-
+        
         // Create test user
         $userId = $this->createTestUser($username, $password);
 
@@ -56,7 +56,7 @@ class AuthTest extends TestCase
     public function testDuplicateUsername()
     {
         $username = 'duplicateuser';
-
+        
         // Create first user
         $this->createTestUser($username);
 
@@ -69,7 +69,7 @@ class AuthTest extends TestCase
     {
         $username = 'testuser';
         $password = 'testpass123';
-
+        
         // Create test user
         $this->createTestUser($username, $password);
 

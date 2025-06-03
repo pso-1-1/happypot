@@ -11,7 +11,7 @@ class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
+        
         // Set up test database connection
         $this->db = new \mysqli(
             getenv('DB_HOST') ?: 'localhost',
