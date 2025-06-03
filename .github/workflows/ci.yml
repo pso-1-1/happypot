@@ -1,38 +1,37 @@
-name: Recipe Website CI/CD
+name: Recipe Website CI/CD # Nama workflow Anda
 
 on:
   push:
-    branches: [ main ] # Saat ada push ke branch 'main'
+    branches: [ "main" ] # Trigger saat ada push ke branch main
   pull_request:
-    branches: [ main ] # Saat ada Pull Request ke branch 'main'
+    branches: [ "main" ] # Trigger saat ada Pull Request ke branch main
 
 permissions:
   contents: read # Memberikan izin baca untuk konten repositori
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # ID Proyek Google Cloud (disimpan sebagai Secret)
-  SERVICE_NAME: recipe-website             # Nama layanan aplikasi Anda
-  REGION: asia-southeast1                  # Region deployment Google Cloud
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # Variabel environment dari secrets
+  SERVICE_NAME: recipe-website
+  REGION: asia-southeast1
 
 jobs:
-  test: # JOB PERTAMA: Menjalankan Pengujian (Continuous Integration)
-    runs-on: ubuntu-latest # Runner (mesin virtual) yang akan menjalankan job ini
+  test: # Nama job untuk pengujian
+    runs-on: ubuntu-latest # Runner yang digunakan
 
-    services:
+    services: # Konfigurasi service container untuk MySQL
       mysql:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: recipedb_test     # <-- KONSISTEN DENGAN PHPUNIT.XML
-          MYSQL_USER: recipeadmin           # <-- KONSISTEN DENGAN PHPUNIT.XML
-          MYSQL_PASSWORD: kod12345          # <-- KONSISTEN DENGAN PHPUNIT.XML
+          MYSQL_DATABASE: recipedb
+          MYSQL_USER: recipeadmin
+          MYSQL_PASSWORD: kod12345
         ports:
-          - 3306:3306
-        # PASTIKAN health-cmd INI MENGGUNAKAN KREDENSIAL YANG BENAR
-        options: --health-cmd="mysqladmin ping -u recipeadmin -pkod12345" --health-interval=10s --health-timeout=5s --health-retries=3
+          - 3306:3306 # Port mapping: host:container
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 # Health check untuk MySQL
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4 # Menggunakan actions/checkout versi 4 yang lebih baru
 
     - name: Validate composer.json and composer.lock
       run: composer validate --strict
@@ -44,39 +43,29 @@ jobs:
     - name: Cache dependencies
       uses: actions/cache@v3
       with:
-        path: ${{ steps.composer-cache.outputs.dir }}
-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        path: ${{ steps.composer-cache.outputs.dir }} # Menggunakan direktori cache composer
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }} # Key cache yang lebih robust
         restore-keys: |
           ${{ runner.os }}-php-
 
-    - name: Set up PHP # <-- VERSI PHP 8.2 AGAR KONSISTEN DENGAN DOCKERFILE
+    - name: Set up PHP # Mengatur PHP sesuai kebutuhan proyek Anda
       uses: shivammathur/setup-php@v2
       with:
-        php-version: '8.2'
+        php-version: '8.1'
         extensions: mbstring, xml, gd, pdo_mysql
-        coverage: xdebug
+        coverage: xdebug # Untuk code coverage dengan PHPUnit
         tools: composer:v2
 
     - name: Install Composer dependencies
       run: composer install --prefer-dist --no-progress
 
-    - name: Create test database and import schema # <-- PERBAIKAN LENGKAP UNTUK KONEKSI MYSQL
+    - name: Create test database and import schema
       run: |
-        echo "Waiting for MySQL service to be ready..."
-        # Loop ini akan mencoba koneksi ke MySQL berulang kali
-        for i in $(seq 1 18); do # Coba 18 kali dengan jeda 5 detik = 90 detik
-          # PASTIKAN HOST ADALAH 'mysql' DAN USER/PASS ADALAH 'recipeadmin'/'kod12345'
-          mysql -h mysql -u recipeadmin -pkod12345 -e "SELECT 1" 2>/dev/null && break || true
-          echo "MySQL not ready yet, waiting 5 seconds..."
-          sleep 5
-        done
-
-        # Tambahkan debug info untuk melihat apakah MySQL benar-benar bisa dijangkau
-        echo "Attempting to connect to MySQL for final check..."
-        mysql -h mysql -u recipeadmin -pkod12345 -e "SHOW DATABASES;" || { echo "Failed to connect to MySQL after waiting. Exiting."; exit 1; }
-
-        # PASTIKAN HOST ADALAH 'mysql' DAN USER/PASS ADALAH 'recipeadmin'/'kod12345'
-        mysql -h mysql -u recipeadmin -pkod12345 recipedb_test < recipedb.sql # <-- NAMA DATABASE 'recipedb_test'
+        mysql -h 127.0.0.1 -u root -prootpassword recipedb < recipedb.sql
+      env:
+        # Menunggu service MySQL siap sebelum menjalankan command ini
+        # Ini penting agar MySQL sudah up dan ready untuk menerima koneksi
+        MYSQL_READY_DELAY: 10 # Delay opsional jika perlu, sesuaikan
 
     - name: Run PHPUnit tests
       run: |
@@ -98,6 +87,3 @@ jobs:
     - name: PHP Mess Detector
       run: |
         ./vendor/bin/phpmd . text cleancode,codesize,controversial,design,naming,unusedcode
-
-  # Job build-and-push dan deploy (jika ada) harus ditambahkan di sini
-  # sesuai dengan yang kita diskusikan sebelumnya untuk CI/CD lengkap
