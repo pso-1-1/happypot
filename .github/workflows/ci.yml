@@ -59,7 +59,7 @@ jobs:
     - name: Install Composer dependencies
       run: composer install --prefer-dist --no-progress
 
-        - name: Wait for MySQL to be ready # <--- LANGKAH BARU YANG SANGAT PENTING
+    - name: Wait for MySQL to be ready # <--- INI INDENTASI YANG BENAR
       run: |
         echo "Waiting for MySQL to be fully ready..."
         for i in $(seq 1 60); do # Coba hingga 60 kali (total 60 detik)
@@ -70,17 +70,17 @@ jobs:
           echo "Still waiting for MySQL... ($i/60)"
           sleep 1
         done
-        mysqladmin ping -h mysql || { echo "MySQL did not become ready in time!"; exit 1; } # Pastikan keluar jika gagal
+        mysqladmin ping -h mysql || { echo "MySQL did not become ready in time!"; exit 1; }
       env:
-        MYSQL_PWD: rootpassword # Penting: gunakan ini untuk password root agar tidak terekspos di log
+        MYSQL_PWD: rootpassword
 
     - name: Create test database and import schema
       run: |
-        mysql -h 127.0.0.1 -u root -prootpassword recipedb_test < recipedb.sql
-      env:
-        # Menunggu service MySQL siap sebelum menjalankan command ini
-        # Ini penting agar MySQL sudah up dan ready untuk menerima koneksi
-        MYSQL_READY_DELAY: 10 # Delay opsional jika perlu, sesuaikan
+        # Gunakan 'mysql' sebagai host untuk konsistensi
+        mysql -h mysql -u root -prootpassword recipedb_test < recipedb.sql
+      # Hapus baris 'env: MYSQL_READY_DELAY: 10' karena tidak digunakan
+      # env:
+      #   MYSQL_READY_DELAY: 10
 
     - name: Run PHPUnit tests
       run: |
