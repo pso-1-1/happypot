@@ -23,7 +23,7 @@ jobs:
           MYSQL_PASSWORD: kod12345
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="mysqladmin ping -u recipeadmin -pkod12345" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
     - uses: actions/checkout@v3
@@ -52,7 +52,16 @@ jobs:
 
     - name: Create test database
       run: |
-        mysql -h 127.0.0.1 -u recipeadmin -pkod12345 recipedb_test < recipedb.sql
+        echo "Waiting for MySQL service to be ready..."
+        for i in $(seq 1 12); do
+          # PASTIKAN HOST ADALAH 'mysql' DAN USER/PASS ADALAH 'recipeadmin'/'kod12345'
+          mysql -h mysql -u recipeadmin -pkod12345 -e "SELECT 1" 2>/dev/null && break
+          echo "MySQL not ready yet, waiting 5 seconds..."
+          sleep 5
+        done
+        # PASTIKAN HOST ADALAH 'mysql' DAN USER/PASS ADALAH 'recipeadmin'/'kod12345'
+        mysql -h mysql -u recipeadmin -pkod12345 recipedb_test < recipedb.sql
+
     - name: Run PHPUnit tests
       run: |
         ./vendor/bin/phpunit --coverage-text --coverage-clover=coverage.xml
