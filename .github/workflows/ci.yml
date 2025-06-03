@@ -22,7 +22,7 @@ jobs:
         image: mysql:5.7
         env:
           MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: recipedb_test
+          MYSQL_DATABASE: recipedb
           MYSQL_USER: recipeadmin
           MYSQL_PASSWORD: kod12345
           # --- OPSI DEBUGGING MYSQL ---
