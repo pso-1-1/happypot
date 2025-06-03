@@ -6,7 +6,7 @@
          verbose="true">
     <testsuites>
         <testsuite name="Recipe Website Test Suite">
-            <directory>tests</directory>
+            <directory>./test</directory>
         </testsuite>
     </testsuites>
     <coverage>
